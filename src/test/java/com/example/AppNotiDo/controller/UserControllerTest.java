@@ -1,34 +1,46 @@
 package com.example.AppNotiDo.controller;
 
 import com.example.AppNotiDo.domain.User;
-import com.example.AppNotiDo.dto.UserDTO;
 import com.example.AppNotiDo.dto.UserProfileUpdateRequest;
 import com.example.AppNotiDo.service.UserService;
-import org.junit.jupiter.api.BeforeEach;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.test.web.servlet.MockMvc;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@ExtendWith(SpringExtension.class)
+@WebMvcTest(UserController.class)
 class UserControllerTest {
 
-    private UserService userService;
-    private UserController userController;
+    @Autowired
+    private MockMvc mockMvc;
 
-    @BeforeEach
-    void setUp() {
-        userService = mock(UserService.class);
-        userController = new UserController(userService);
-    }
+    @MockBean
+    private UserService userService;
+
+    // Si tu as un filtre JWT, il faudra éventuellement le mocker ici aussi
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Test
-    void getCurrentUserProfile_ReturnsUserDTO() {
+    void getCurrentUserProfile_ReturnsUserDTO() throws Exception {
         // Arrange
-        Authentication authentication = mock(Authentication.class);
-        when(authentication.getName()).thenReturn("alice");
-
         User user = new User();
         user.setId(1L);
         user.setUsername("alice");
@@ -37,49 +49,41 @@ class UserControllerTest {
 
         when(userService.getUserByUsername("alice")).thenReturn(user);
 
-        // Act
-        UserDTO result = userController.getCurrentUserProfile(authentication);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals("alice", result.getUsername());
-        assertEquals("Alice Display", result.getDisplayName());
+        // Act & Assert
+        mockMvc.perform(get("/api/users/profile")
+                        .principal(() -> "alice"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username", is("alice")))
+                .andExpect(jsonPath("$.displayName", is("Alice Display")));
     }
 
     @Test
-    void updateCurrentUserDisplayName_UpdatesDisplayName() {
+    void updateCurrentUserDisplayName_UpdatesDisplayName() throws Exception {
         // Arrange
-        Authentication authentication = mock(Authentication.class);
-        when(authentication.getName()).thenReturn("alice");
-
         User existing = new User();
         existing.setId(1L);
         existing.setUsername("alice");
         existing.setEmail("alice@example.com");
         existing.setDisplayName("Old Name");
 
-        User saved = new User();
-        saved.setId(1L);
-        saved.setUsername("alice");
-        saved.setEmail("alice@example.com");
-        saved.setDisplayName("New Name");
+        User updated = new User();
+        updated.setId(1L);
+        updated.setUsername("alice");
+        updated.setEmail("alice@example.com");
+        updated.setDisplayName("New Name");
 
         when(userService.getUserByUsername("alice")).thenReturn(existing);
-        when(userService.saveUser(any(User.class))).thenReturn(saved);
+        when(userService.saveUser(any(User.class))).thenReturn(updated);
 
         UserProfileUpdateRequest request = new UserProfileUpdateRequest();
         request.setDisplayName("New Name");
 
-        // Act
-        UserDTO result = userController.updateCurrentUserDisplayName(request, authentication);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals("New Name", result.getDisplayName());
-
-        // Vérifie qu'on a bien appelé le service avec le bon user
-        verify(userService, times(1)).getUserByUsername("alice");
-        verify(userService, times(1)).saveUser(existing);
-        assertEquals("New Name", existing.getDisplayName());
+        // Act & Assert
+        mockMvc.perform(patch("/api/users/profile")
+                        .principal(() -> "alice")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.displayName", is("New Name")));
     }
 }

@@ -1,12 +1,9 @@
 package com.example.AppNotiDo.dto;
-
 import lombok.Data;
-
 import java.time.LocalDateTime;
 
 @Data
 public class TaskDTO {
-
     private Long id;
     private String title;
     private String description;
@@ -23,4 +20,8 @@ public class TaskDTO {
     private boolean locked;
     private String tags;
 
+    private LocalDateTime startedAt;
+    private LocalDateTime pausedAt;
+    private Integer timeSpent;
+    private Boolean isRunning;
 }

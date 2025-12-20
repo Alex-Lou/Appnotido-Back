@@ -3,6 +3,7 @@ package com.example.AppNotiDo.controller;
 import com.example.AppNotiDo.domain.User;
 import com.example.AppNotiDo.dto.UserDTO;
 import com.example.AppNotiDo.dto.UserProfileUpdateRequest;
+import com.example.AppNotiDo.dto.ChangePasswordRequest;
 import com.example.AppNotiDo.mapper.UserMapper;
 import com.example.AppNotiDo.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,8 +11,11 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @Tag(name = "Users", description = "API de gestion des utilisateurs")
 @RestController
@@ -77,7 +81,6 @@ public class UserController {
         userService.deleteUser(id);
     }
 
-
     @Operation(summary = "Récupérer le profil de l'utilisateur connecté")
     @GetMapping("/profile")
     public UserDTO getCurrentUserProfile(Authentication authentication) {
@@ -86,17 +89,46 @@ public class UserController {
         return UserMapper.toDTO(user);
     }
 
-    // 🔥 NOUVEAU : Mettre à jour UNIQUEMENT le displayName
-    @Operation(summary = "Mettre à jour le nom d'affichage de l'utilisateur connecté")
+    @Operation(summary = "Mettre à jour le profil de l'utilisateur connecté")
     @PatchMapping("/profile")
-    public UserDTO updateCurrentUserDisplayName(
+    public UserDTO updateCurrentUserProfile(
             @Valid @RequestBody UserProfileUpdateRequest request,
             Authentication authentication
     ) {
         String username = authentication.getName();
         User user = userService.getUserByUsername(username);
-        user.setDisplayName(request.getDisplayName());
-        User updatedUser = userService.saveUser(user);  // Ajoute saveUser dans UserService si besoin
+
+        if (request.getDisplayName() != null) {
+            user.setDisplayName(request.getDisplayName());
+        }
+        if (request.getEmail() != null) {
+            user.setEmail(request.getEmail());
+        }
+
+        User updatedUser = userService.saveUser(user);
         return UserMapper.toDTO(updatedUser);
+    }
+
+    @Operation(summary = "Changer le mot de passe de l'utilisateur connecté")
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            Authentication authentication
+    ) {
+        try {
+            String username = authentication.getName();
+            userService.changePassword(username, request.getCurrentPassword(), request.getNewPassword());
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "Supprimer le compte de l'utilisateur connecté")
+    @DeleteMapping("/me")
+    public void deleteCurrentUser(Authentication authentication) {
+        String username = authentication.getName();
+        User user = userService.getUserByUsername(username);
+        userService.deleteUser(user.getId());
     }
 }

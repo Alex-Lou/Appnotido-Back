@@ -127,4 +127,8 @@ public class TaskService {
             throw new IllegalArgumentException("You don't have permission to access this task");
         }
     }
+
+    public Task saveTask(Task task) {
+        return taskRepository.save(task);
+    }
 }

@@ -34,8 +34,14 @@ public class TaskMapper {
             dto.setUsername(task.getUser().getUsername());
         }
 
-        // Tags (ex: "dev,urgent,home")
+        // Tags
         dto.setTags(task.getTags());
+
+        // ⬇️ AJOUTER CES 4 LIGNES
+        dto.setStartedAt(task.getStartedAt());
+        dto.setPausedAt(task.getPausedAt());
+        dto.setTimeSpent(task.getTimeSpent() != null ? task.getTimeSpent() : 0);
+        dto.setIsRunning(task.getIsRunning() != null ? task.getIsRunning() : false);
 
         return dto;
     }
@@ -69,6 +75,11 @@ public class TaskMapper {
 
         // Tags
         task.setTags(dto.getTags());
+
+        task.setStartedAt(dto.getStartedAt());
+        task.setPausedAt(dto.getPausedAt());
+        task.setTimeSpent(dto.getTimeSpent());
+        task.setIsRunning(dto.getIsRunning());
 
         return task;
     }

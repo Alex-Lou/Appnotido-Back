@@ -65,4 +65,16 @@ public class Task {
     @Column(name = "tags", length = 255)
     private String tags;
 
+    @Column(name = "started_at")
+    private LocalDateTime startedAt;
+
+    @Column(name = "paused_at")
+    private LocalDateTime pausedAt;
+
+    @Column(name = "time_spent")
+    private Integer timeSpent = 0; // Minutes déjà passées sur la tâche
+
+    @Column(name = "is_running")
+    private Boolean isRunning = false;
+
 }

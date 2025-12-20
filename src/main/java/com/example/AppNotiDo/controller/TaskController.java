@@ -79,15 +79,60 @@ public class TaskController{
     @PutMapping("/{id}")
     public ResponseEntity<TaskDTO> updateTask(
             @Parameter(description = "ID de la tâche à modifier") @PathVariable Long id,
-            @Valid @RequestBody TaskDTO taskDTO  // Reçoit un TaskDTO
+            @Valid @RequestBody TaskDTO taskDTO
     ){
-        // Convertir TaskDTO en Task
-        Task task = TaskMapper.toEntity(taskDTO);
+        // Récupérer la tâche existante
+        Task existingTask = taskService.getTaskById(id);
 
-        // Mettre à jour
-        Task updatedTask = taskService.updateTask(id, task);
+        // Mettre à jour UNIQUEMENT les champs fournis dans le DTO
+        if (taskDTO.getTitle() != null) {
+            existingTask.setTitle(taskDTO.getTitle());
+        }
+        if (taskDTO.getDescription() != null) {
+            existingTask.setDescription(taskDTO.getDescription());
+        }
+        if (taskDTO.getStatus() != null) {
+            existingTask.setStatus(TaskStatus.valueOf(taskDTO.getStatus()));
+        }
+        if (taskDTO.getPriority() != null) {
+            existingTask.setPriority(TaskPriority.valueOf(taskDTO.getPriority()));
+        }
+        if (taskDTO.getDueDate() != null) {
+            existingTask.setDueDate(taskDTO.getDueDate());
+        }
+        if (taskDTO.getEstimatedDuration() != null) {
+            existingTask.setEstimatedDuration(taskDTO.getEstimatedDuration());
+        }
+        if (taskDTO.getReminderMinutes() != null) {
+            existingTask.setReminderMinutes(taskDTO.getReminderMinutes());
+        }
+        if (taskDTO.getNotified() != null) {
+            existingTask.setNotified(taskDTO.getNotified());
+        }
+        existingTask.setLocked(taskDTO.isLocked());
 
-        // Retourner le DTO
+        if (taskDTO.getTags() != null) {
+            existingTask.setTags(taskDTO.getTags());
+        }
+
+        // ⬇️ NOUVEAUX CHAMPS TIMER
+        if (taskDTO.getIsRunning() != null) {
+            existingTask.setIsRunning(taskDTO.getIsRunning());
+        }
+        if (taskDTO.getStartedAt() != null) {
+            existingTask.setStartedAt(taskDTO.getStartedAt());
+        }
+        if (taskDTO.getPausedAt() != null) {
+            existingTask.setPausedAt(taskDTO.getPausedAt());
+        }
+        if (taskDTO.getTimeSpent() != null) {
+            existingTask.setTimeSpent(taskDTO.getTimeSpent());
+        }
+
+        // Sauvegarder (garde l'user, createdAt, etc.)
+        Task updatedTask = taskService.saveTask(existingTask);
+
+        // Retourner le DTO complet
         TaskDTO responseDTO = TaskMapper.toDTO(updatedTask);
         return ResponseEntity.ok(responseDTO);
     }
