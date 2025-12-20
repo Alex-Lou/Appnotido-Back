@@ -62,4 +62,7 @@ public class Task {
     @Column(name = "locked")
     private Boolean locked = false;
 
+    @Column(name = "tags", length = 255)
+    private String tags;
+
 }

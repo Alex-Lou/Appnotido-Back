@@ -7,7 +7,10 @@ import com.example.AppNotiDo.dto.TaskDTO;
 
 public class TaskMapper {
 
-    public static TaskDTO toDTO(Task task){
+    public static TaskDTO toDTO(Task task) {
+        if (task == null) {
+            return null;
+        }
 
         TaskDTO dto = new TaskDTO();
 
@@ -18,17 +21,21 @@ public class TaskMapper {
         dto.setEstimatedDuration(task.getEstimatedDuration());
         dto.setReminderMinutes(task.getReminderMinutes());
         dto.setNotified(task.getNotified());
-        dto.setLocked(task.getLocked() != null ? task.getLocked() : false); // AJOUT DU LOCKED
+        dto.setLocked(task.getLocked() != null ? task.getLocked() : false);
         dto.setCreatedAt(task.getCreatedAt());
         dto.setUpdatedAt(task.getUpdatedAt());
 
         dto.setStatus(task.getStatus() != null ? task.getStatus().name() : null);
         dto.setPriority(task.getPriority() != null ? task.getPriority().name() : null);
 
+        // User infos
         if (task.getUser() != null) {
             dto.setUserId(task.getUser().getId());
             dto.setUsername(task.getUser().getUsername());
         }
+
+        // Tags (ex: "dev,urgent,home")
+        dto.setTags(task.getTags());
 
         return dto;
     }
@@ -39,6 +46,7 @@ public class TaskMapper {
         }
 
         Task task = new Task();
+
         task.setId(dto.getId());
         task.setTitle(dto.getTitle());
         task.setDescription(dto.getDescription());
@@ -46,6 +54,7 @@ public class TaskMapper {
         if (dto.getStatus() != null) {
             task.setStatus(TaskStatus.valueOf(dto.getStatus()));
         }
+
         if (dto.getPriority() != null) {
             task.setPriority(TaskPriority.valueOf(dto.getPriority()));
         }
@@ -54,9 +63,12 @@ public class TaskMapper {
         task.setEstimatedDuration(dto.getEstimatedDuration());
         task.setReminderMinutes(dto.getReminderMinutes());
         task.setNotified(dto.getNotified());
-        task.setLocked(dto.isLocked()); // IMPORTANT !
+        task.setLocked(dto.isLocked());
         task.setCreatedAt(dto.getCreatedAt());
         task.setUpdatedAt(dto.getUpdatedAt());
+
+        // Tags
+        task.setTags(dto.getTags());
 
         return task;
     }

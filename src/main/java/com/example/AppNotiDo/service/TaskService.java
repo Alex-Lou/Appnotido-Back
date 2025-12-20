@@ -64,7 +64,6 @@ public class TaskService {
     public Task updateTask(Long id, Task updatedTask) {
         Task existingTask = getTaskById(id);
 
-        // Modifier seulement si le champ n'est pas null
         if (updatedTask.getTitle() != null) {
             existingTask.setTitle(updatedTask.getTitle());
         }
@@ -89,13 +88,18 @@ public class TaskService {
         if (updatedTask.getNotified() != null) {
             existingTask.setNotified(updatedTask.getNotified());
         }
-        // IMPORTANT : Ajouter la mise à jour du locked
         if (updatedTask.getLocked() != null) {
             existingTask.setLocked(updatedTask.getLocked());
         }
 
+        // ⭐ AJOUT POUR LES TAGS
+        if (updatedTask.getTags() != null) {
+            existingTask.setTags(updatedTask.getTags());
+        }
+
         return taskRepository.save(existingTask);
     }
+
 
     public List<Task> getTaskByStatus(TaskStatus status) {
         User currentUser = securityUtils.getCurrentUser();

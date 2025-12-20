@@ -34,6 +34,7 @@ class UserServiceTest {
         testUser.setEmail("alice@example.com");
         testUser.setPassword("hashedPassword");
         testUser.setRole("ROLE_USER");
+        testUser.setTheme("light");
     }
 
     @Test
@@ -86,9 +87,7 @@ class UserServiceTest {
         when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
         // Act & Assert
-        assertThrows(UserNotFoundException.class, () -> {
-            userService.getUserById(999L);
-        });
+        assertThrows(UserNotFoundException.class, () -> userService.getUserById(999L));
     }
 
     @Test
@@ -102,5 +101,51 @@ class UserServiceTest {
         // Assert
         assertNotNull(result);
         assertEquals("alice", result.getUsername());
+    }
+
+    @Test
+    void deleteUser_Success() {
+        // Arrange
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+
+        // Act
+        userService.deleteUser(1L);
+
+        // Assert
+        verify(userRepository, times(1)).deleteById(1L);
+    }
+
+    @Test
+    void updateUser_UpdatesUsernameEmailAndTheme() {
+        // Arrange
+        User updated = new User();
+        updated.setUsername("alice2");
+        updated.setEmail("alice2@example.com");
+        updated.setTheme("dark");
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        when(userRepository.save(any(User.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Act
+        User result = userService.updateUser(1L, updated);
+
+        // Assert
+        assertEquals("alice2", result.getUsername());
+        assertEquals("alice2@example.com", result.getEmail());
+        assertEquals("dark", result.getTheme());
+    }
+
+    @Test
+    void saveUser_DelegatesToRepository() {
+        // Arrange
+        when(userRepository.save(testUser)).thenReturn(testUser);
+
+        // Act
+        User result = userService.saveUser(testUser);
+
+        // Assert
+        assertNotNull(result);
+        verify(userRepository, times(1)).save(testUser);
     }
 }

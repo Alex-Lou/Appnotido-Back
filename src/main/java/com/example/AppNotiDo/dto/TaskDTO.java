@@ -21,5 +21,6 @@ public class TaskDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private boolean locked;
+    private String tags;
 
 }
