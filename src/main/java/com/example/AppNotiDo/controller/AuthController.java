@@ -35,8 +35,18 @@ public class AuthController {
     @Operation(summary = "S'inscrire (créer un compte)")
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody User user, HttpServletResponse response) {
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setRole("ROLE_USER");
+        // Initialiser les champs obligatoires s'ils sont null
+        if (user.getRole() == null || user.getRole().isEmpty()) {
+            user.setRole("ROLE_USER");
+        }
+        if (user.getTheme() == null || user.getTheme().isEmpty()) {
+            user.setTheme("light");
+        }
+        if (user.getDisplayName() == null || user.getDisplayName().isEmpty()) {
+            user.setDisplayName(user.getUsername());
+        }
+
+        // Le password sera encodé dans UserService.createUser()
         userService.createUser(user);
 
         // Connexion automatique après inscription
@@ -44,10 +54,10 @@ public class AuthController {
 
         // Créer le cookie HttpOnly
         Cookie cookie = new Cookie("token", token);
-        cookie.setHttpOnly(true);           // ✅ JavaScript ne peut pas lire
-        cookie.setSecure(false);            // ⚠️ false pour localhost, true en production HTTPS
+        cookie.setHttpOnly(true);
+        cookie.setSecure(false);
         cookie.setPath("/");
-        cookie.setMaxAge(7 * 24 * 3600);    // 7 jours
+        cookie.setMaxAge(7 * 24 * 3600);
         response.addCookie(cookie);
 
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -68,10 +78,10 @@ public class AuthController {
 
             // Créer le cookie HttpOnly
             Cookie cookie = new Cookie("token", token);
-            cookie.setHttpOnly(true);           // ✅ JavaScript ne peut pas lire
-            cookie.setSecure(false);            // ⚠️ false pour localhost, true en production HTTPS
+            cookie.setHttpOnly(true);
+            cookie.setSecure(false);
             cookie.setPath("/");
-            cookie.setMaxAge(7 * 24 * 3600);    // 7 jours
+            cookie.setMaxAge(7 * 24 * 3600);
             response.addCookie(cookie);
 
             // Retourner seulement le username (pas le token)
@@ -90,7 +100,7 @@ public class AuthController {
         cookie.setHttpOnly(true);
         cookie.setSecure(false);
         cookie.setPath("/");
-        cookie.setMaxAge(0);  // ✅ Expire immédiatement
+        cookie.setMaxAge(0);
         response.addCookie(cookie);
 
         return ResponseEntity.ok(Map.of("message", "Logged out successfully"));

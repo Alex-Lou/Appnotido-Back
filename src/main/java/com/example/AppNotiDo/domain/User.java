@@ -50,4 +50,26 @@ public class User {
     @Column(name = "display_name", length = 100)
     private String displayName;
 
+    @PrePersist
+    public void prePersist() {
+        if (this.role == null || this.role.isEmpty()) {
+            this.role = "ROLE_USER";
+        }
+        if (this.theme == null || this.theme.isEmpty()) {
+            this.theme = "light";
+        }
+        if (this.displayName == null || this.displayName.isEmpty()) {
+            this.displayName = this.username;
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        if (this.theme == null || this.theme.isEmpty()) {
+            this.theme = "light";
+        }
+        if (this.displayName == null || this.displayName.isEmpty()) {
+            this.displayName = this.username;
+        }
+    }
 }

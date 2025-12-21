@@ -30,7 +30,35 @@ public class UserService {
             throw new IllegalArgumentException("This email already exists");
         }
 
+        // Valider et initialiser les champs obligatoires
+        if (user.getUsername() == null || user.getUsername().isEmpty()) {
+            throw new IllegalArgumentException("Username cannot be empty");
+        }
+
+        if (user.getEmail() == null || user.getEmail().isEmpty()) {
+            throw new IllegalArgumentException("Email cannot be empty");
+        }
+
+        if (user.getPassword() == null || user.getPassword().isEmpty()) {
+            throw new IllegalArgumentException("Password cannot be empty");
+        }
+
+        // Initialiser les valeurs par défaut si nécessaire
+        if (user.getRole() == null || user.getRole().isEmpty()) {
+            user.setRole("ROLE_USER");
+        }
+
+        if (user.getTheme() == null || user.getTheme().isEmpty()) {
+            user.setTheme("light");
+        }
+
+        if (user.getDisplayName() == null || user.getDisplayName().isEmpty()) {
+            user.setDisplayName(user.getUsername());
+        }
+
+        // Encoder le password UNE SEULE FOIS
         user.setPassword(passwordEncoder.encode(user.getPassword()));
+
         return userRepository.save(user);
     }
 
@@ -61,6 +89,10 @@ public class UserService {
 
         if(updateUser.getTheme() != null) {
             existingUser.setTheme(updateUser.getTheme());
+        }
+
+        if(updateUser.getDisplayName() != null) {
+            existingUser.setDisplayName(updateUser.getDisplayName());
         }
 
         return userRepository.save(existingUser);
