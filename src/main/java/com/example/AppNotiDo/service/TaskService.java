@@ -11,14 +11,16 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 public class TaskService {
 
     private final TaskRepository taskRepository;
-
     private final SecurityUtils securityUtils;
 
     public TaskService(TaskRepository taskRepository, SecurityUtils securityUtils) {
@@ -26,9 +28,7 @@ public class TaskService {
         this.securityUtils = securityUtils;
     }
 
-
     public Task createTask(Task task) {
-        // Valeurs par défaut
         if (task.getStatus() == null) {
             task.setStatus(TaskStatus.TODO);
         }
@@ -36,7 +36,6 @@ public class TaskService {
             task.setPriority(TaskPriority.MEDIUM);
         }
 
-        // Associer automatiquement au user connecté
         User currentUser = securityUtils.getCurrentUser();
         task.setUser(currentUser);
 
@@ -92,14 +91,25 @@ public class TaskService {
             existingTask.setLocked(updatedTask.getLocked());
         }
 
-        // ⭐ AJOUT POUR LES TAGS
         if (updatedTask.getTags() != null) {
             existingTask.setTags(updatedTask.getTags());
         }
 
+        if (updatedTask.getIsRunning() != null) {
+            existingTask.setIsRunning(updatedTask.getIsRunning());
+        }
+        if (updatedTask.getStartedAt() != null) {
+            existingTask.setStartedAt(updatedTask.getStartedAt());
+        }
+        if (updatedTask.getPausedAt() != null) {
+            existingTask.setPausedAt(updatedTask.getPausedAt());
+        }
+        if (updatedTask.getTimeSpent() != null) {
+            existingTask.setTimeSpent(updatedTask.getTimeSpent());
+        }
+
         return taskRepository.save(existingTask);
     }
-
 
     public List<Task> getTaskByStatus(TaskStatus status) {
         User currentUser = securityUtils.getCurrentUser();
@@ -129,6 +139,83 @@ public class TaskService {
     }
 
     public Task saveTask(Task task) {
+        return taskRepository.save(task);
+    }
+
+    // ======================
+    //        TIMER
+    // ======================
+
+    @Transactional
+    public Task startTask(Long taskId, User user) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new TaskNotFoundException("Task not found with id: " + taskId));
+
+        if (!task.getUser().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("Not your task");
+        }
+
+        if (Boolean.TRUE.equals(task.getIsRunning())) {
+            return task;
+        }
+
+        task.setStartedAt(LocalDateTime.now());
+        task.setPausedAt(null);
+        task.setIsRunning(true);
+
+        return taskRepository.save(task);
+    }
+
+    @Transactional
+    public Task pauseTask(Long taskId, User user) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new TaskNotFoundException("Task not found with id: " + taskId));
+
+        if (!task.getUser().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("Not your task");
+        }
+
+        if (!Boolean.TRUE.equals(task.getIsRunning()) || task.getStartedAt() == null) {
+            return task;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        // ✅ CHANGEMENT : toSeconds() au lieu de toMinutes()
+        long seconds = Duration.between(task.getStartedAt(), now).toSeconds();
+
+        int current = task.getTimeSpent() != null ? task.getTimeSpent() : 0;
+        task.setTimeSpent(current + (int) seconds);
+
+        task.setPausedAt(now);
+        task.setIsRunning(false);
+
+        return taskRepository.save(task);
+    }
+
+    @Transactional
+    public Task stopTask(Long taskId, User user) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new TaskNotFoundException("Task not found with id: " + taskId));
+
+        if (!task.getUser().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("Not your task");
+        }
+
+        // ✅ Si le timer tourne encore, sauvegarder le temps final
+        if (Boolean.TRUE.equals(task.getIsRunning()) && task.getStartedAt() != null) {
+            LocalDateTime now = LocalDateTime.now();
+            // ✅ CHANGEMENT : toSeconds() au lieu de toMinutes()
+            long seconds = Duration.between(task.getStartedAt(), now).toSeconds();
+
+            int current = task.getTimeSpent() != null ? task.getTimeSpent() : 0;
+            task.setTimeSpent(current + (int) seconds);
+
+            task.setPausedAt(now);
+        }
+
+        task.setIsRunning(false);
+        task.setStatus(TaskStatus.DONE);
+
         return taskRepository.save(task);
     }
 }

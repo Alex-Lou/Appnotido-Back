@@ -3,9 +3,11 @@ package com.example.AppNotiDo.controller;
 import com.example.AppNotiDo.domain.Task;
 import com.example.AppNotiDo.domain.TaskPriority;
 import com.example.AppNotiDo.domain.TaskStatus;
+import com.example.AppNotiDo.domain.User;
 import com.example.AppNotiDo.dto.TaskDTO;
 import com.example.AppNotiDo.mapper.TaskMapper;
 import com.example.AppNotiDo.service.TaskService;
+import com.example.AppNotiDo.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -15,6 +17,8 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,9 +29,11 @@ import java.util.List;
 public class TaskController{
 
     private final TaskService taskService;
+    private final UserService userService; // ← AJOUT
 
-    public TaskController(TaskService taskService){
+    public TaskController(TaskService taskService, UserService userService){
         this.taskService = taskService;
+        this.userService = userService; // ← AJOUT
     }
 
     @Operation(
@@ -46,12 +52,10 @@ public class TaskController{
     public Page<TaskDTO> getAllTasks(
             @Parameter(description = "Numéro de la page (commence à 0)")
             @RequestParam(defaultValue = "0") int page,
-
             @Parameter(description = "Nombre d'éléments par page")
             @RequestParam(defaultValue = "10") int size
     ) {
         Page<Task> taskPage = taskService.getAllTasks(page, size);
-
         return taskPage.map(TaskMapper::toDTO);
     }
 
@@ -65,7 +69,6 @@ public class TaskController{
         Task task = taskService.getTaskById(id);
         return TaskMapper.toDTO(task);
     }
-
 
     @Operation(summary = "Effacer une tâche existante")
     @DeleteMapping("/{id}")
@@ -172,8 +175,40 @@ public class TaskController{
             @RequestParam(defaultValue = "10") int size
     ) {
         Page<Task> taskPage = taskService.getTasksByUserId(userId, page, size);
-
         return taskPage.map(TaskMapper::toDTO);
+    }
+
+    @Operation(summary = "Démarrer le timer d'une tâche")
+    @PostMapping("/{id}/start")
+    public ResponseEntity<TaskDTO> startTask(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        User user = userService.getUserByUsername(userDetails.getUsername());
+        Task updated = taskService.startTask(id, user);
+        return ResponseEntity.ok(TaskMapper.toDTO(updated));
+    }
+
+    @Operation(summary = "Mettre en pause le timer d'une tâche")
+    @PostMapping("/{id}/pause")
+    public ResponseEntity<TaskDTO> pauseTask(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        User user = userService.getUserByUsername(userDetails.getUsername());
+        Task updated = taskService.pauseTask(id, user);
+        return ResponseEntity.ok(TaskMapper.toDTO(updated));
+    }
+
+    @Operation(summary = "Arrêter le timer d'une tâche (et la marquer comme DONE)")
+    @PostMapping("/{id}/stop")
+    public ResponseEntity<TaskDTO> stopTask(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        User user = userService.getUserByUsername(userDetails.getUsername());
+        Task updated = taskService.stopTask(id, user);
+        return ResponseEntity.ok(TaskMapper.toDTO(updated));
     }
 
 }

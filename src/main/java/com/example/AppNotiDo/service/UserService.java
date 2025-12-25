@@ -119,4 +119,9 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
     }
+
+    public User findByUsername(String username) {
+        return getUserByUsername(username);
+    }
+
 }

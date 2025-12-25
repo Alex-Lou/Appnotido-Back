@@ -37,11 +37,17 @@ public class TaskMapper {
         // Tags
         dto.setTags(task.getTags());
 
-        // ⬇️ AJOUTER CES 4 LIGNES
+        // Timer fields
         dto.setStartedAt(task.getStartedAt());
         dto.setPausedAt(task.getPausedAt());
         dto.setTimeSpent(task.getTimeSpent() != null ? task.getTimeSpent() : 0);
         dto.setIsRunning(task.getIsRunning() != null ? task.getIsRunning() : false);
+
+        // Reactivable field
+        dto.setReactivable(task.getReactivable() != null ? task.getReactivable() : false);
+
+        // Timer enabled field
+        dto.setTimerEnabled(task.getTimerEnabled() != null ? task.getTimerEnabled() : true);
 
         return dto;
     }
@@ -76,10 +82,17 @@ public class TaskMapper {
         // Tags
         task.setTags(dto.getTags());
 
+        // Timer fields
         task.setStartedAt(dto.getStartedAt());
         task.setPausedAt(dto.getPausedAt());
         task.setTimeSpent(dto.getTimeSpent());
         task.setIsRunning(dto.getIsRunning());
+
+        // Reactivable field
+        task.setReactivable(dto.getReactivable() != null ? dto.getReactivable() : false);
+
+        // Timer enabled field
+        task.setTimerEnabled(dto.getTimerEnabled() != null ? dto.getTimerEnabled() : true);
 
         return task;
     }

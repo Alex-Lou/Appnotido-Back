@@ -77,4 +77,10 @@ public class Task {
     @Column(name = "is_running")
     private Boolean isRunning = false;
 
+    @Column(name = "reactivable", nullable = false)
+    private Boolean reactivable = false;
+
+    @Column(name = "timer_enabled", nullable = false)
+    private Boolean timerEnabled = true; //
+
 }

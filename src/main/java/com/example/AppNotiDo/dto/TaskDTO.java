@@ -24,4 +24,6 @@ public class TaskDTO {
     private LocalDateTime pausedAt;
     private Integer timeSpent;
     private Boolean isRunning;
+    private Boolean reactivable;
+    private Boolean timerEnabled;
 }
