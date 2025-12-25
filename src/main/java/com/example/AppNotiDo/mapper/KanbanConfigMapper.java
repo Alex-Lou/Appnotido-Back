@@ -3,8 +3,8 @@ package com.example.AppNotiDo.mapper;
 import com.example.AppNotiDo.domain.KanbanConfig;
 import com.example.AppNotiDo.dto.KanbanConfigDTO;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -36,20 +36,25 @@ public class KanbanConfigMapper {
 
     public static KanbanConfigDTO getDefaultDTO() {
         KanbanConfigDTO dto = new KanbanConfigDTO();
-        dto.setVisibleStatusColumns(Arrays.asList("TODO", "IN_PROGRESS", "DONE"));
-        dto.setActiveTagColumns(Collections.emptyList());
-        dto.setColumnsOrder(Arrays.asList("TODO", "IN_PROGRESS", "DONE"));
+        // Utiliser ArrayList pour avoir des listes mutables
+        dto.setVisibleStatusColumns(new ArrayList<>(Arrays.asList("TODO", "IN_PROGRESS", "DONE")));
+        dto.setActiveTagColumns(new ArrayList<>());
+        dto.setColumnsOrder(new ArrayList<>(Arrays.asList("TODO", "IN_PROGRESS", "DONE")));
         return dto;
     }
 
     private static List<String> stringToList(String str) {
         if (str == null || str.trim().isEmpty()) {
-            return Collections.emptyList();
+            // Retourner une ArrayList mutable, pas Collections.emptyList()
+            return new ArrayList<>();
         }
-        return Arrays.stream(str.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .collect(Collectors.toList());
+        // Utiliser Collectors.toList() dans un new ArrayList pour garantir la mutabilité
+        return new ArrayList<>(
+                Arrays.stream(str.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .collect(Collectors.toList())
+        );
     }
 
     private static String listToString(List<String> list) {
