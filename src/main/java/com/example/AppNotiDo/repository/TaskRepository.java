@@ -43,4 +43,17 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             TaskStatus status
     );
 
+    // ========================================
+    // MÉTHODES POUR LES NOTIFICATIONS
+    // ========================================
+
+    // Récupérer les tâches non terminées qui ont une date d'échéance
+    List<Task> findByStatusNotAndDueDateIsNotNull(TaskStatus status);
+
+    // Récupérer les tâches non notifiées avec échéance entre deux dates
+    List<Task> findByStatusNotAndDueDateBetweenAndNotifiedFalse(
+            TaskStatus status,
+            LocalDateTime start,
+            LocalDateTime end
+    );
 }
