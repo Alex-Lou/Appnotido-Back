@@ -26,14 +26,14 @@ import java.util.List;
 @Tag(name = "Tasks", description = "API de gestion des tâches")
 @RestController
 @RequestMapping("/api/tasks")
-public class TaskController{
+public class TaskController {
 
     private final TaskService taskService;
-    private final UserService userService; // ← AJOUT
+    private final UserService userService;
 
-    public TaskController(TaskService taskService, UserService userService){
+    public TaskController(TaskService taskService, UserService userService) {
         this.taskService = taskService;
-        this.userService = userService; // ← AJOUT
+        this.userService = userService;
     }
 
     @Operation(
@@ -41,7 +41,7 @@ public class TaskController{
             description = "Crée une tâche avec un titre obligatoire. Le status par défaut est TODO et la priorité MEDIUM."
     )
     @PostMapping
-    public ResponseEntity<TaskDTO> createTask(@Valid @RequestBody Task task){
+    public ResponseEntity<TaskDTO> createTask(@Valid @RequestBody Task task) {
         Task createdTask = taskService.createTask(task);
         TaskDTO dto = TaskMapper.toDTO(createdTask);
         return ResponseEntity.status(HttpStatus.CREATED).body(dto);
@@ -65,7 +65,7 @@ public class TaskController{
             @ApiResponse(responseCode = "404", description = "Tâche introuvable")
     })
     @GetMapping("/{id}")
-    public TaskDTO getTaskById(@PathVariable Long id){
+    public TaskDTO getTaskById(@PathVariable Long id) {
         Task task = taskService.getTaskById(id);
         return TaskMapper.toDTO(task);
     }
@@ -74,7 +74,7 @@ public class TaskController{
     @DeleteMapping("/{id}")
     public void deleteTaskById(
             @Parameter(description = "ID de la tâche à supprimer") @PathVariable Long id
-    ){
+    ) {
         taskService.deleteTask(id);
     }
 
@@ -83,61 +83,34 @@ public class TaskController{
     public ResponseEntity<TaskDTO> updateTask(
             @Parameter(description = "ID de la tâche à modifier") @PathVariable Long id,
             @Valid @RequestBody TaskDTO taskDTO
-    ){
-        // Récupérer la tâche existante
-        Task existingTask = taskService.getTaskById(id);
-
-        // Mettre à jour UNIQUEMENT les champs fournis dans le DTO
-        if (taskDTO.getTitle() != null) {
-            existingTask.setTitle(taskDTO.getTitle());
-        }
-        if (taskDTO.getDescription() != null) {
-            existingTask.setDescription(taskDTO.getDescription());
-        }
+    ) {
+        // Convertir le DTO en Task
+        Task taskToUpdate = new Task();
+        taskToUpdate.setTitle(taskDTO.getTitle());
+        taskToUpdate.setDescription(taskDTO.getDescription());
         if (taskDTO.getStatus() != null) {
-            existingTask.setStatus(TaskStatus.valueOf(taskDTO.getStatus()));
+            taskToUpdate.setStatus(TaskStatus.valueOf(taskDTO.getStatus()));
         }
         if (taskDTO.getPriority() != null) {
-            existingTask.setPriority(TaskPriority.valueOf(taskDTO.getPriority()));
+            taskToUpdate.setPriority(TaskPriority.valueOf(taskDTO.getPriority()));
         }
-        if (taskDTO.getDueDate() != null) {
-            existingTask.setDueDate(taskDTO.getDueDate());
-        }
-        if (taskDTO.getEstimatedDuration() != null) {
-            existingTask.setEstimatedDuration(taskDTO.getEstimatedDuration());
-        }
-        if (taskDTO.getReminderMinutes() != null) {
-            existingTask.setReminderMinutes(taskDTO.getReminderMinutes());
-        }
-        if (taskDTO.getNotified() != null) {
-            existingTask.setNotified(taskDTO.getNotified());
-        }
-        existingTask.setLocked(taskDTO.isLocked());
+        taskToUpdate.setDueDate(taskDTO.getDueDate());
+        taskToUpdate.setEstimatedDuration(taskDTO.getEstimatedDuration());
+        taskToUpdate.setReminderMinutes(taskDTO.getReminderMinutes());
+        taskToUpdate.setNotified(taskDTO.getNotified());
+        taskToUpdate.setLocked(taskDTO.isLocked());
+        taskToUpdate.setTags(taskDTO.getTags());
+        taskToUpdate.setIsRunning(taskDTO.getIsRunning());
+        taskToUpdate.setStartedAt(taskDTO.getStartedAt());
+        taskToUpdate.setPausedAt(taskDTO.getPausedAt());
+        taskToUpdate.setTimeSpent(taskDTO.getTimeSpent());
+        taskToUpdate.setTimerEnabled(taskDTO.getTimerEnabled());
+        taskToUpdate.setReactivable(taskDTO.getReactivable());
 
-        if (taskDTO.getTags() != null) {
-            existingTask.setTags(taskDTO.getTags());
-        }
+        // Appeler la méthode updateTask du service (qui gère les notifications)
+        Task updatedTask = taskService.updateTask(id, taskToUpdate);
 
-        // ⬇️ NOUVEAUX CHAMPS TIMER
-        if (taskDTO.getIsRunning() != null) {
-            existingTask.setIsRunning(taskDTO.getIsRunning());
-        }
-        if (taskDTO.getStartedAt() != null) {
-            existingTask.setStartedAt(taskDTO.getStartedAt());
-        }
-        if (taskDTO.getPausedAt() != null) {
-            existingTask.setPausedAt(taskDTO.getPausedAt());
-        }
-        if (taskDTO.getTimeSpent() != null) {
-            existingTask.setTimeSpent(taskDTO.getTimeSpent());
-        }
-
-        // Sauvegarder (garde l'user, createdAt, etc.)
-        Task updatedTask = taskService.saveTask(existingTask);
-
-        // Retourner le DTO complet
-        TaskDTO responseDTO = TaskMapper.toDTO(updatedTask);
-        return ResponseEntity.ok(responseDTO);
+        return ResponseEntity.ok(TaskMapper.toDTO(updatedTask));
     }
 
     @Operation(summary = "Filtrer par statut")
@@ -145,7 +118,7 @@ public class TaskController{
     public List<Task> getTaskByStatus(
             @Parameter(description = "Statut des tâches à filtrer", example = "TODO")
             @RequestParam TaskStatus status
-    ){
+    ) {
         return taskService.getTaskByStatus(status);
     }
 
@@ -154,13 +127,13 @@ public class TaskController{
     public List<Task> getTaskByPriority(
             @Parameter(description = "Priorité des tâches à filtrer", example = "MEDIUM")
             @RequestParam TaskPriority priority
-    ){
+    ) {
         return taskService.getTaskByPriority(priority);
     }
 
     @Operation(summary = "Filtrer par Statut et Priorité")
     @GetMapping("/filter-combined")
-    public List<Task> getTaskByStatusAndPriority(@RequestParam TaskStatus status, @RequestParam TaskPriority priority){
+    public List<Task> getTaskByStatusAndPriority(@RequestParam TaskStatus status, @RequestParam TaskPriority priority) {
         return taskService.getTaskByStatusAndPriority(status, priority);
     }
 
@@ -210,5 +183,4 @@ public class TaskController{
         Task updated = taskService.stopTask(id, user);
         return ResponseEntity.ok(TaskMapper.toDTO(updated));
     }
-
 }

@@ -15,19 +15,24 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class TaskService {
 
     private final TaskRepository taskRepository;
     private final SecurityUtils securityUtils;
+    private final NotificationService notificationService;
 
-    public TaskService(TaskRepository taskRepository, SecurityUtils securityUtils) {
+    public TaskService(TaskRepository taskRepository, SecurityUtils securityUtils, NotificationService notificationService) {
         this.taskRepository = taskRepository;
         this.securityUtils = securityUtils;
+        this.notificationService = notificationService;
     }
 
+    @Transactional
     public Task createTask(Task task) {
         if (task.getStatus() == null) {
             task.setStatus(TaskStatus.TODO);
@@ -39,7 +44,12 @@ public class TaskService {
         User currentUser = securityUtils.getCurrentUser();
         task.setUser(currentUser);
 
-        return taskRepository.save(task);
+        Task savedTask = taskRepository.save(task);
+
+        // 📝 Notification de création
+        notificationService.notifyTaskCreated(savedTask);
+
+        return savedTask;
     }
 
     public Page<Task> getAllTasks(int page, int size) {
@@ -55,13 +65,87 @@ public class TaskService {
         return task;
     }
 
+    @Transactional
     public void deleteTask(Long id) {
         Task task = getTaskById(id);
+        String taskTitle = task.getTitle();
+        User user = task.getUser();
+
+        // Supprimer les notifications liées à cette tâche
+        notificationService.deleteNotificationsByTask(id);
+
         taskRepository.deleteById(id);
+
+        // 🗑️ Notification de suppression
+        notificationService.notifyTaskDeleted(user, taskTitle);
     }
 
+    @Transactional
     public Task updateTask(Long id, Task updatedTask) {
         Task existingTask = getTaskById(id);
+
+        // Liste des modifications pour le message de notification
+        List<String> changes = new ArrayList<>();
+
+        // ========================================
+        // DÉTECTER LES CHANGEMENTS AVANT MODIFICATION
+        // ========================================
+
+        // Titre
+        boolean titleChanged = updatedTask.getTitle() != null &&
+                !Objects.equals(updatedTask.getTitle(), existingTask.getTitle());
+        if (titleChanged) changes.add("titre");
+
+        // Description
+        boolean descriptionChanged = updatedTask.getDescription() != null &&
+                !Objects.equals(updatedTask.getDescription(), existingTask.getDescription());
+        if (descriptionChanged) changes.add("description");
+
+        // Statut
+        String oldStatus = existingTask.getStatus() != null ? existingTask.getStatus().name() : null;
+        String newStatus = updatedTask.getStatus() != null ? updatedTask.getStatus().name() : oldStatus;
+        boolean statusChanged = !Objects.equals(oldStatus, newStatus);
+
+        // Priorité
+        String oldPriority = existingTask.getPriority() != null ? existingTask.getPriority().name() : null;
+        String newPriority = updatedTask.getPriority() != null ? updatedTask.getPriority().name() : oldPriority;
+        boolean priorityChanged = !Objects.equals(oldPriority, newPriority);
+
+        // Date d'échéance
+        LocalDateTime oldDueDate = existingTask.getDueDate();
+        boolean dueDateChanged = updatedTask.getDueDate() != null &&
+                !Objects.equals(updatedTask.getDueDate(), existingTask.getDueDate());
+        if (dueDateChanged) changes.add("échéance");
+
+        // Durée estimée
+        boolean durationChanged = updatedTask.getEstimatedDuration() != null &&
+                !Objects.equals(updatedTask.getEstimatedDuration(), existingTask.getEstimatedDuration());
+        if (durationChanged) changes.add("durée estimée");
+
+        // Rappel
+        boolean reminderChanged = updatedTask.getReminderMinutes() != null &&
+                !Objects.equals(updatedTask.getReminderMinutes(), existingTask.getReminderMinutes());
+        if (reminderChanged) changes.add("rappel");
+
+        // Tags
+        boolean tagsChanged = updatedTask.getTags() != null &&
+                !Objects.equals(updatedTask.getTags(), existingTask.getTags());
+        if (tagsChanged) changes.add("tags");
+
+        // Réactivable
+        Boolean wasReactivable = existingTask.getReactivable();
+        boolean reactivableChanged = updatedTask.getReactivable() != null &&
+                !Objects.equals(updatedTask.getReactivable(), existingTask.getReactivable());
+        if (reactivableChanged) changes.add("réactivable");
+
+        // Timer
+        boolean timerChanged = updatedTask.getTimerEnabled() != null &&
+                !Objects.equals(updatedTask.getTimerEnabled(), existingTask.getTimerEnabled());
+        if (timerChanged) changes.add("timer");
+
+        // ========================================
+        // APPLIQUER LES MODIFICATIONS
+        // ========================================
 
         if (updatedTask.getTitle() != null) {
             existingTask.setTitle(updatedTask.getTitle());
@@ -90,11 +174,9 @@ public class TaskService {
         if (updatedTask.getLocked() != null) {
             existingTask.setLocked(updatedTask.getLocked());
         }
-
         if (updatedTask.getTags() != null) {
             existingTask.setTags(updatedTask.getTags());
         }
-
         if (updatedTask.getIsRunning() != null) {
             existingTask.setIsRunning(updatedTask.getIsRunning());
         }
@@ -107,8 +189,54 @@ public class TaskService {
         if (updatedTask.getTimeSpent() != null) {
             existingTask.setTimeSpent(updatedTask.getTimeSpent());
         }
+        if (updatedTask.getReactivable() != null) {
+            existingTask.setReactivable(updatedTask.getReactivable());
+        }
+        if (updatedTask.getTimerEnabled() != null) {
+            existingTask.setTimerEnabled(updatedTask.getTimerEnabled());
+        }
 
-        return taskRepository.save(existingTask);
+        Task savedTask = taskRepository.save(existingTask);
+
+        // ========================================
+        // CRÉER LES NOTIFICATIONS
+        // ========================================
+
+        // 📊 Changement de statut
+        if (statusChanged) {
+            if ("DONE".equals(newStatus)) {
+                notificationService.notifyTaskCompleted(savedTask);
+            } else {
+                notificationService.notifyStatusChanged(savedTask, oldStatus, newStatus);
+            }
+        }
+
+        // 🎯 Changement de priorité
+        if (priorityChanged) {
+            notificationService.notifyPriorityChanged(savedTask, oldPriority, newPriority);
+        }
+
+        // 🔄 Tâche réactivée (déplacée à aujourd'hui)
+        if (Boolean.TRUE.equals(wasReactivable) && dueDateChanged && updatedTask.getDueDate() != null) {
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime newDueDateValue = updatedTask.getDueDate();
+
+            if (oldDueDate != null && !oldDueDate.toLocalDate().equals(newDueDateValue.toLocalDate())) {
+                if (newDueDateValue.toLocalDate().equals(now.toLocalDate())) {
+                    notificationService.notifyTaskReactivated(savedTask);
+                    // Retirer "échéance" des changes car on a déjà notifié pour réactivation
+                    changes.remove("échéance");
+                }
+            }
+        }
+
+        // ✏️ Notification générique pour autres modifications
+        if (!statusChanged && !priorityChanged && !changes.isEmpty()) {
+            String detail = String.join(", ", changes) + " modifié" + (changes.size() > 1 ? "s" : "");
+            notificationService.notifyTaskUpdated(savedTask, detail);
+        }
+
+        return savedTask;
     }
 
     public List<Task> getTaskByStatus(TaskStatus status) {
@@ -163,7 +291,12 @@ public class TaskService {
         task.setPausedAt(null);
         task.setIsRunning(true);
 
-        return taskRepository.save(task);
+        Task savedTask = taskRepository.save(task);
+
+        // ▶️ Notification timer démarré
+        notificationService.notifyTimerStarted(savedTask);
+
+        return savedTask;
     }
 
     @Transactional
@@ -180,16 +313,21 @@ public class TaskService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        // ✅ CHANGEMENT : toSeconds() au lieu de toMinutes()
         long seconds = Duration.between(task.getStartedAt(), now).toSeconds();
 
         int current = task.getTimeSpent() != null ? task.getTimeSpent() : 0;
-        task.setTimeSpent(current + (int) seconds);
+        int newTimeSpent = current + (int) seconds;
+        task.setTimeSpent(newTimeSpent);
 
         task.setPausedAt(now);
         task.setIsRunning(false);
 
-        return taskRepository.save(task);
+        Task savedTask = taskRepository.save(task);
+
+        // ⏸️ Notification timer en pause
+        notificationService.notifyTimerPaused(savedTask, newTimeSpent);
+
+        return savedTask;
     }
 
     @Transactional
@@ -201,21 +339,25 @@ public class TaskService {
             throw new IllegalArgumentException("Not your task");
         }
 
-        // ✅ Si le timer tourne encore, sauvegarder le temps final
+        int totalTimeSpent = task.getTimeSpent() != null ? task.getTimeSpent() : 0;
+
         if (Boolean.TRUE.equals(task.getIsRunning()) && task.getStartedAt() != null) {
             LocalDateTime now = LocalDateTime.now();
-            // ✅ CHANGEMENT : toSeconds() au lieu de toMinutes()
             long seconds = Duration.between(task.getStartedAt(), now).toSeconds();
-
-            int current = task.getTimeSpent() != null ? task.getTimeSpent() : 0;
-            task.setTimeSpent(current + (int) seconds);
-
+            totalTimeSpent += (int) seconds;
+            task.setTimeSpent(totalTimeSpent);
             task.setPausedAt(now);
         }
 
         task.setIsRunning(false);
         task.setStatus(TaskStatus.DONE);
+        task.setTimerEnabled(false);
 
-        return taskRepository.save(task);
+        Task savedTask = taskRepository.save(task);
+
+        // ⏹️ Notification timer arrêté (inclut le temps total)
+        notificationService.notifyTimerStopped(savedTask, totalTimeSpent);
+
+        return savedTask;
     }
 }
