@@ -281,4 +281,11 @@ public class NotificationService {
             default: return priority;
         }
     }
+
+
+    @Transactional
+    public void deleteAllNotifications() {
+        User currentUser = securityUtils.getCurrentUser();
+        notificationRepository.deleteByUserId(currentUser.getId());
+    }
 }
