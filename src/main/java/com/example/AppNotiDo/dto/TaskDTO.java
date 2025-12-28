@@ -1,6 +1,8 @@
 package com.example.AppNotiDo.dto;
+
 import lombok.Data;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class TaskDTO {
@@ -26,4 +28,14 @@ public class TaskDTO {
     private Boolean isRunning;
     private Boolean reactivable;
     private Boolean timerEnabled;
+
+    private Long projectId;
+    private String projectName;
+    private String projectColor;
+
+    // ===== SOUS-TÂCHES =====
+    private List<SubtaskDTO> subtasks;
+    private Integer subtaskCount;
+    private Integer completedSubtaskCount;
+    private Double subtaskProgress;
 }

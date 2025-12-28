@@ -3,7 +3,6 @@ package com.example.AppNotiDo.domain;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 import org.springframework.data.annotation.CreatedDate;
@@ -11,6 +10,8 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Data
@@ -22,7 +23,7 @@ public class Task {
     private Long id;
 
     @NotBlank(message = "Title can not be empty")
-    @Size(min = 3, max = 100, message = "Title must be between 3 and 100 carachters")
+    @Size(min = 3, max = 100, message = "Title must be between 3 and 100 characters")
     @Column(nullable = false)
     private String title;
 
@@ -59,6 +60,17 @@ public class Task {
     @JsonIgnore
     private User user;
 
+    // ===== RELATION PROJET =====
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    @JsonIgnore
+    private Project project;
+
+    // ===== RELATION SOUS-TÂCHES =====
+    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("displayOrder ASC")
+    private List<Subtask> subtasks = new ArrayList<>();
+
     @Column(name = "locked")
     private Boolean locked = false;
 
@@ -72,7 +84,7 @@ public class Task {
     private LocalDateTime pausedAt;
 
     @Column(name = "time_spent")
-    private Integer timeSpent = 0; // Minutes déjà passées sur la tâche
+    private Integer timeSpent = 0;
 
     @Column(name = "is_running")
     private Boolean isRunning = false;
@@ -81,6 +93,23 @@ public class Task {
     private Boolean reactivable = false;
 
     @Column(name = "timer_enabled", nullable = false)
-    private Boolean timerEnabled = true; //
+    private Boolean timerEnabled = true;
 
+    // ===== MÉTHODES UTILITAIRES SOUS-TÂCHES =====
+    public int getSubtaskCount() {
+        return subtasks != null ? subtasks.size() : 0;
+    }
+
+    public int getCompletedSubtaskCount() {
+        if (subtasks == null) return 0;
+        return (int) subtasks.stream()
+                .filter(s -> Boolean.TRUE.equals(s.getCompleted()))
+                .count();
+    }
+
+    public double getSubtaskProgress() {
+        int total = getSubtaskCount();
+        if (total == 0) return 0.0;
+        return (getCompletedSubtaskCount() * 100.0) / total;
+    }
 }

@@ -1,10 +1,12 @@
 package com.example.AppNotiDo.service;
 
+import com.example.AppNotiDo.domain.Project;
 import com.example.AppNotiDo.domain.Task;
 import com.example.AppNotiDo.domain.TaskPriority;
 import com.example.AppNotiDo.domain.TaskStatus;
 import com.example.AppNotiDo.domain.User;
 import com.example.AppNotiDo.exception.TaskNotFoundException;
+import com.example.AppNotiDo.repository.ProjectRepository;
 import com.example.AppNotiDo.repository.TaskRepository;
 import com.example.AppNotiDo.util.SecurityUtils;
 import org.springframework.data.domain.Page;
@@ -23,11 +25,13 @@ import java.util.Objects;
 public class TaskService {
 
     private final TaskRepository taskRepository;
+    private final ProjectRepository projectRepository;
     private final SecurityUtils securityUtils;
     private final NotificationService notificationService;
 
-    public TaskService(TaskRepository taskRepository, SecurityUtils securityUtils, NotificationService notificationService) {
+    public TaskService(TaskRepository taskRepository, ProjectRepository projectRepository, SecurityUtils securityUtils, NotificationService notificationService) {
         this.taskRepository = taskRepository;
+        this.projectRepository = projectRepository;
         this.securityUtils = securityUtils;
         this.notificationService = notificationService;
     }
@@ -52,10 +56,43 @@ public class TaskService {
         return savedTask;
     }
 
+    @Transactional
+    public Task createTaskWithProject(Task task, Long projectId) {
+        if (task.getStatus() == null) {
+            task.setStatus(TaskStatus.TODO);
+        }
+        if (task.getPriority() == null) {
+            task.setPriority(TaskPriority.MEDIUM);
+        }
+
+        User currentUser = securityUtils.getCurrentUser();
+        task.setUser(currentUser);
+
+        // Assigner le projet si spécifié
+        if (projectId != null) {
+            Project project = projectRepository.findByIdAndUserId(projectId, currentUser.getId())
+                    .orElse(null);
+            task.setProject(project);
+        }
+
+        Task savedTask = taskRepository.save(task);
+
+        // 📝 Notification de création
+        notificationService.notifyTaskCreated(savedTask);
+
+        return savedTask;
+    }
+
     public Page<Task> getAllTasks(int page, int size) {
         User currentUser = securityUtils.getCurrentUser();
         Pageable pageable = PageRequest.of(page, size);
         return taskRepository.findByUserId(currentUser.getId(), pageable);
+    }
+
+    public Page<Task> getTasksByProject(Long projectId, int page, int size) {
+        User currentUser = securityUtils.getCurrentUser();
+        Pageable pageable = PageRequest.of(page, size);
+        return taskRepository.findByProjectIdAndUserId(projectId, currentUser.getId(), pageable);
     }
 
     public Task getTaskById(Long id) {
@@ -143,6 +180,13 @@ public class TaskService {
                 !Objects.equals(updatedTask.getTimerEnabled(), existingTask.getTimerEnabled());
         if (timerChanged) changes.add("timer");
 
+        // Projet
+        boolean projectChanged = !Objects.equals(
+                updatedTask.getProject() != null ? updatedTask.getProject().getId() : null,
+                existingTask.getProject() != null ? existingTask.getProject().getId() : null
+        );
+        if (projectChanged) changes.add("projet");
+
         // ========================================
         // APPLIQUER LES MODIFICATIONS
         // ========================================
@@ -195,6 +239,10 @@ public class TaskService {
         if (updatedTask.getTimerEnabled() != null) {
             existingTask.setTimerEnabled(updatedTask.getTimerEnabled());
         }
+        // Projet - on permet de mettre à null pour retirer du projet
+        if (projectChanged) {
+            existingTask.setProject(updatedTask.getProject());
+        }
 
         Task savedTask = taskRepository.save(existingTask);
 
@@ -237,6 +285,22 @@ public class TaskService {
         }
 
         return savedTask;
+    }
+
+    @Transactional
+    public Task updateTaskWithProject(Long id, Task updatedTask, Long projectId) {
+        User currentUser = securityUtils.getCurrentUser();
+
+        // Charger le projet si spécifié
+        if (projectId != null) {
+            Project project = projectRepository.findByIdAndUserId(projectId, currentUser.getId())
+                    .orElse(null);
+            updatedTask.setProject(project);
+        } else {
+            updatedTask.setProject(null);
+        }
+
+        return updateTask(id, updatedTask);
     }
 
     public List<Task> getTaskByStatus(TaskStatus status) {

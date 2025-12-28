@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
@@ -56,4 +57,28 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             LocalDateTime start,
             LocalDateTime end
     );
+
+    // ===== AJOUTER CES MÉTHODES DANS TaskRepository.java =====
+
+    // Trouver les tâches d'un projet
+    List<Task> findByProjectId(Long projectId);
+
+    // Trouver les tâches d'un projet avec pagination
+    Page<Task> findByProjectIdAndUserId(Long projectId, Long userId, Pageable pageable);
+
+    // Supprimer les tâches d'un projet
+    void deleteByProjectId(Long projectId);
+
+    // Trouver les tâches sans projet (inbox)
+    Page<Task> findByUserIdAndProjectIsNull(Long userId, Pageable pageable);
+
+    // Compter les tâches d'un projet
+    long countByProjectId(Long projectId);
+
+    // Compter les tâches terminées d'un projet
+    long countByProjectIdAndStatus(Long projectId, TaskStatus status);
+
+    // Trouver une tâche par ID et userId (sécurité)
+    Optional<Task> findByIdAndUserId(Long id, Long userId);
+
 }

@@ -41,10 +41,18 @@ public class TaskController {
             description = "Crée une tâche avec un titre obligatoire. Le status par défaut est TODO et la priorité MEDIUM."
     )
     @PostMapping
-    public ResponseEntity<TaskDTO> createTask(@Valid @RequestBody Task task) {
-        Task createdTask = taskService.createTask(task);
-        TaskDTO dto = TaskMapper.toDTO(createdTask);
-        return ResponseEntity.status(HttpStatus.CREATED).body(dto);
+    public ResponseEntity<TaskDTO> createTask(@Valid @RequestBody TaskDTO taskDTO) {
+        Task task = TaskMapper.toEntity(taskDTO);
+
+        // Utiliser la méthode avec projet si projectId est spécifié
+        Task createdTask;
+        if (taskDTO.getProjectId() != null) {
+            createdTask = taskService.createTaskWithProject(task, taskDTO.getProjectId());
+        } else {
+            createdTask = taskService.createTask(task);
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(TaskMapper.toDTO(createdTask));
     }
 
     @Operation(summary = "Récupérer toutes les tâches avec pagination")
@@ -53,9 +61,16 @@ public class TaskController {
             @Parameter(description = "Numéro de la page (commence à 0)")
             @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Nombre d'éléments par page")
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "Filtrer par projet (optionnel)")
+            @RequestParam(required = false) Long projectId
     ) {
-        Page<Task> taskPage = taskService.getAllTasks(page, size);
+        Page<Task> taskPage;
+        if (projectId != null) {
+            taskPage = taskService.getTasksByProject(projectId, page, size);
+        } else {
+            taskPage = taskService.getAllTasks(page, size);
+        }
         return taskPage.map(TaskMapper::toDTO);
     }
 
@@ -107,10 +122,24 @@ public class TaskController {
         taskToUpdate.setTimerEnabled(taskDTO.getTimerEnabled());
         taskToUpdate.setReactivable(taskDTO.getReactivable());
 
-        // Appeler la méthode updateTask du service (qui gère les notifications)
-        Task updatedTask = taskService.updateTask(id, taskToUpdate);
+        // Utiliser la méthode avec projet
+        Task updatedTask = taskService.updateTaskWithProject(id, taskToUpdate, taskDTO.getProjectId());
 
         return ResponseEntity.ok(TaskMapper.toDTO(updatedTask));
+    }
+
+    @Operation(summary = "Récupérer les tâches d'un projet")
+    @GetMapping("/project/{projectId}")
+    public Page<TaskDTO> getTasksByProject(
+            @Parameter(description = "ID du projet")
+            @PathVariable Long projectId,
+            @Parameter(description = "Numéro de la page")
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Nombre d'éléments par page")
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Page<Task> taskPage = taskService.getTasksByProject(projectId, page, size);
+        return taskPage.map(TaskMapper::toDTO);
     }
 
     @Operation(summary = "Filtrer par statut")

@@ -34,6 +34,13 @@ public class TaskMapper {
             dto.setUsername(task.getUser().getUsername());
         }
 
+        // Project infos
+        if (task.getProject() != null) {
+            dto.setProjectId(task.getProject().getId());
+            dto.setProjectName(task.getProject().getName());
+            dto.setProjectColor(task.getProject().getColor());
+        }
+
         // Tags
         dto.setTags(task.getTags());
 
@@ -48,6 +55,18 @@ public class TaskMapper {
 
         // Timer enabled field
         dto.setTimerEnabled(task.getTimerEnabled() != null ? task.getTimerEnabled() : true);
+
+        // ===== SOUS-TÂCHES =====
+        if (task.getSubtasks() != null) {
+            dto.setSubtasks(SubtaskMapper.toDTOList(task.getSubtasks()));
+            dto.setSubtaskCount(task.getSubtaskCount());
+            dto.setCompletedSubtaskCount(task.getCompletedSubtaskCount());
+            dto.setSubtaskProgress(task.getSubtaskProgress());
+        } else {
+            dto.setSubtaskCount(0);
+            dto.setCompletedSubtaskCount(0);
+            dto.setSubtaskProgress(0.0);
+        }
 
         return dto;
     }
@@ -93,6 +112,11 @@ public class TaskMapper {
 
         // Timer enabled field
         task.setTimerEnabled(dto.getTimerEnabled() != null ? dto.getTimerEnabled() : true);
+
+        // Note: Le projet doit être assigné séparément dans le service
+        // car on a besoin du ProjectRepository pour charger l'entité Project
+
+        // Note: Les sous-tâches doivent être gérées séparément via SubtaskService
 
         return task;
     }
