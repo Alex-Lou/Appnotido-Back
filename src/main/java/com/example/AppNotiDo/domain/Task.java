@@ -95,6 +95,34 @@ public class Task {
     @Column(name = "timer_enabled", nullable = false)
     private Boolean timerEnabled = true;
 
+    // ===== RÉCURRENCE =====
+    @Enumerated(EnumType.STRING)
+    @Column(name = "recurrence_type")
+    private RecurrenceType recurrenceType = RecurrenceType.NONE;
+
+    @Column(name = "recurrence_interval")
+    private Integer recurrenceInterval = 1; // Tous les X jours/semaines/mois
+
+    @Column(name = "recurrence_days", length = 100)
+    private String recurrenceDays; // Pour hebdo: "MONDAY,WEDNESDAY,FRIDAY"
+
+    @Column(name = "recurrence_day_of_month")
+    private Integer recurrenceDayOfMonth; // Pour mensuel: 1-31
+
+    @Column(name = "recurrence_end_date")
+    private LocalDateTime recurrenceEndDate; // Date de fin optionnelle
+
+    @Column(name = "next_occurrence")
+    private LocalDateTime nextOccurrence; // Prochaine date de création
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_task_id")
+    @JsonIgnore
+    private Task parentTask; // Tâche template si générée par récurrence
+
+    @Column(name = "is_recurring_template")
+    private Boolean isRecurringTemplate = false; // True si c'est le modèle de récurrence
+
     // ===== MÉTHODES UTILITAIRES SOUS-TÂCHES =====
     public int getSubtaskCount() {
         return subtasks != null ? subtasks.size() : 0;
@@ -111,5 +139,10 @@ public class Task {
         int total = getSubtaskCount();
         if (total == 0) return 0.0;
         return (getCompletedSubtaskCount() * 100.0) / total;
+    }
+
+    // ===== MÉTHODES UTILITAIRES RÉCURRENCE =====
+    public boolean isRecurring() {
+        return recurrenceType != null && recurrenceType != RecurrenceType.NONE;
     }
 }

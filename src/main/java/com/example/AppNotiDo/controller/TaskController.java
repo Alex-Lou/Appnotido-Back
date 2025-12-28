@@ -3,6 +3,7 @@ package com.example.AppNotiDo.controller;
 import com.example.AppNotiDo.domain.Task;
 import com.example.AppNotiDo.domain.TaskPriority;
 import com.example.AppNotiDo.domain.TaskStatus;
+import com.example.AppNotiDo.domain.RecurrenceType;
 import com.example.AppNotiDo.domain.User;
 import com.example.AppNotiDo.dto.TaskDTO;
 import com.example.AppNotiDo.mapper.TaskMapper;
@@ -121,6 +122,18 @@ public class TaskController {
         taskToUpdate.setTimeSpent(taskDTO.getTimeSpent());
         taskToUpdate.setTimerEnabled(taskDTO.getTimerEnabled());
         taskToUpdate.setReactivable(taskDTO.getReactivable());
+
+        // ========== RÉCURRENCE ==========
+        if (taskDTO.getRecurrenceType() != null) {
+            taskToUpdate.setRecurrenceType(RecurrenceType.valueOf(taskDTO.getRecurrenceType()));
+        } else {
+            taskToUpdate.setRecurrenceType(RecurrenceType.NONE);
+        }
+        taskToUpdate.setRecurrenceInterval(taskDTO.getRecurrenceInterval() != null ? taskDTO.getRecurrenceInterval() : 1);
+        taskToUpdate.setRecurrenceDays(taskDTO.getRecurrenceDays());
+        taskToUpdate.setRecurrenceDayOfMonth(taskDTO.getRecurrenceDayOfMonth() != null ? taskDTO.getRecurrenceDayOfMonth() : 1);
+        taskToUpdate.setRecurrenceEndDate(taskDTO.getRecurrenceEndDate());
+        // ================================
 
         // Utiliser la méthode avec projet
         Task updatedTask = taskService.updateTaskWithProject(id, taskToUpdate, taskDTO.getProjectId());

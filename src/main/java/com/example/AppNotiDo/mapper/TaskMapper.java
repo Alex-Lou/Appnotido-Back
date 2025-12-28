@@ -3,6 +3,7 @@ package com.example.AppNotiDo.mapper;
 import com.example.AppNotiDo.domain.Task;
 import com.example.AppNotiDo.domain.TaskPriority;
 import com.example.AppNotiDo.domain.TaskStatus;
+import com.example.AppNotiDo.domain.RecurrenceType;
 import com.example.AppNotiDo.dto.TaskDTO;
 
 public class TaskMapper {
@@ -68,6 +69,19 @@ public class TaskMapper {
             dto.setSubtaskProgress(0.0);
         }
 
+        // ===== RÉCURRENCE =====
+        dto.setRecurrenceType(task.getRecurrenceType() != null ? task.getRecurrenceType().name() : "NONE");
+        dto.setRecurrenceInterval(task.getRecurrenceInterval());
+        dto.setRecurrenceDays(task.getRecurrenceDays());
+        dto.setRecurrenceDayOfMonth(task.getRecurrenceDayOfMonth());
+        dto.setRecurrenceEndDate(task.getRecurrenceEndDate());
+        dto.setNextOccurrence(task.getNextOccurrence());
+        dto.setIsRecurringTemplate(task.getIsRecurringTemplate() != null ? task.getIsRecurringTemplate() : false);
+
+        if (task.getParentTask() != null) {
+            dto.setParentTaskId(task.getParentTask().getId());
+        }
+
         return dto;
     }
 
@@ -113,10 +127,21 @@ public class TaskMapper {
         // Timer enabled field
         task.setTimerEnabled(dto.getTimerEnabled() != null ? dto.getTimerEnabled() : true);
 
-        // Note: Le projet doit être assigné séparément dans le service
-        // car on a besoin du ProjectRepository pour charger l'entité Project
+        // ===== RÉCURRENCE =====
+        if (dto.getRecurrenceType() != null && !dto.getRecurrenceType().isEmpty()) {
+            task.setRecurrenceType(RecurrenceType.valueOf(dto.getRecurrenceType()));
+        } else {
+            task.setRecurrenceType(RecurrenceType.NONE);
+        }
+        task.setRecurrenceInterval(dto.getRecurrenceInterval() != null ? dto.getRecurrenceInterval() : 1);
+        task.setRecurrenceDays(dto.getRecurrenceDays());
+        task.setRecurrenceDayOfMonth(dto.getRecurrenceDayOfMonth());
+        task.setRecurrenceEndDate(dto.getRecurrenceEndDate());
+        task.setIsRecurringTemplate(dto.getIsRecurringTemplate() != null ? dto.getIsRecurringTemplate() : false);
 
+        // Note: Le projet doit être assigné séparément dans le service
         // Note: Les sous-tâches doivent être gérées séparément via SubtaskService
+        // Note: Le parentTask doit être assigné séparément dans le service
 
         return task;
     }

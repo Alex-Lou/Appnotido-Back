@@ -4,6 +4,7 @@ import com.example.AppNotiDo.domain.Project;
 import com.example.AppNotiDo.domain.Task;
 import com.example.AppNotiDo.domain.TaskPriority;
 import com.example.AppNotiDo.domain.TaskStatus;
+import com.example.AppNotiDo.domain.RecurrenceType;
 import com.example.AppNotiDo.domain.User;
 import com.example.AppNotiDo.exception.TaskNotFoundException;
 import com.example.AppNotiDo.repository.ProjectRepository;
@@ -28,12 +29,16 @@ public class TaskService {
     private final ProjectRepository projectRepository;
     private final SecurityUtils securityUtils;
     private final NotificationService notificationService;
+    private final RecurrenceService recurrenceService;
 
-    public TaskService(TaskRepository taskRepository, ProjectRepository projectRepository, SecurityUtils securityUtils, NotificationService notificationService) {
+    public TaskService(TaskRepository taskRepository, ProjectRepository projectRepository,
+                       SecurityUtils securityUtils, NotificationService notificationService,
+                       RecurrenceService recurrenceService) {
         this.taskRepository = taskRepository;
         this.projectRepository = projectRepository;
         this.securityUtils = securityUtils;
         this.notificationService = notificationService;
+        this.recurrenceService = recurrenceService;
     }
 
     @Transactional
@@ -47,6 +52,9 @@ public class TaskService {
 
         User currentUser = securityUtils.getCurrentUser();
         task.setUser(currentUser);
+
+        // Gérer la récurrence
+        setupRecurrenceIfNeeded(task);
 
         Task savedTask = taskRepository.save(task);
 
@@ -75,12 +83,30 @@ public class TaskService {
             task.setProject(project);
         }
 
+        // Gérer la récurrence
+        setupRecurrenceIfNeeded(task);
+
         Task savedTask = taskRepository.save(task);
 
         // 📝 Notification de création
         notificationService.notifyTaskCreated(savedTask);
 
         return savedTask;
+    }
+
+    /**
+     * Configure la récurrence pour une nouvelle tâche
+     */
+    private void setupRecurrenceIfNeeded(Task task) {
+        if (task.getRecurrenceType() != null && task.getRecurrenceType() != RecurrenceType.NONE) {
+            task.setIsRecurringTemplate(true);
+            // Calculer la prochaine occurrence
+            LocalDateTime nextOccurrence = recurrenceService.calculateNextOccurrence(task);
+            task.setNextOccurrence(nextOccurrence);
+        } else {
+            task.setIsRecurringTemplate(false);
+            task.setRecurrenceType(RecurrenceType.NONE);
+        }
     }
 
     public Page<Task> getAllTasks(int page, int size) {
@@ -187,6 +213,13 @@ public class TaskService {
         );
         if (projectChanged) changes.add("projet");
 
+        // Récurrence
+        boolean recurrenceChanged = !Objects.equals(
+                updatedTask.getRecurrenceType(),
+                existingTask.getRecurrenceType()
+        );
+        if (recurrenceChanged) changes.add("récurrence");
+
         // ========================================
         // APPLIQUER LES MODIFICATIONS
         // ========================================
@@ -242,6 +275,42 @@ public class TaskService {
         // Projet - on permet de mettre à null pour retirer du projet
         if (projectChanged) {
             existingTask.setProject(updatedTask.getProject());
+        }
+
+        // ========================================
+        // GÉRER LA RÉCURRENCE
+        // ========================================
+        if (updatedTask.getRecurrenceType() != null) {
+            existingTask.setRecurrenceType(updatedTask.getRecurrenceType());
+        }
+        if (updatedTask.getRecurrenceInterval() != null) {
+            existingTask.setRecurrenceInterval(updatedTask.getRecurrenceInterval());
+        }
+        if (updatedTask.getRecurrenceDays() != null) {
+            existingTask.setRecurrenceDays(updatedTask.getRecurrenceDays());
+        }
+        if (updatedTask.getRecurrenceDayOfMonth() != null) {
+            existingTask.setRecurrenceDayOfMonth(updatedTask.getRecurrenceDayOfMonth());
+        }
+        if (updatedTask.getRecurrenceEndDate() != null) {
+            existingTask.setRecurrenceEndDate(updatedTask.getRecurrenceEndDate());
+        }
+
+        // Mettre à jour le statut de template et la prochaine occurrence
+        if (recurrenceChanged) {
+            if (existingTask.getRecurrenceType() != null && existingTask.getRecurrenceType() != RecurrenceType.NONE) {
+                existingTask.setIsRecurringTemplate(true);
+                existingTask.setNextOccurrence(recurrenceService.calculateNextOccurrence(existingTask));
+            } else {
+                existingTask.setIsRecurringTemplate(false);
+                existingTask.setNextOccurrence(null);
+            }
+        }
+
+        // Si une tâche récurrente est marquée comme DONE, créer la prochaine occurrence
+        if (statusChanged && "DONE".equals(newStatus) && Boolean.TRUE.equals(existingTask.getIsRecurringTemplate())) {
+            // Créer la prochaine occurrence automatiquement
+            recurrenceService.createNextOccurrence(existingTask);
         }
 
         Task savedTask = taskRepository.save(existingTask);
@@ -335,6 +404,27 @@ public class TaskService {
     }
 
     // ======================
+    //     RÉCURRENCE
+    // ======================
+
+    /**
+     * Récupère les templates de récurrence de l'utilisateur courant
+     */
+    public List<Task> getRecurringTemplates() {
+        User currentUser = securityUtils.getCurrentUser();
+        return taskRepository.findByUserIdAndIsRecurringTemplateTrue(currentUser.getId());
+    }
+
+    /**
+     * Arrête la récurrence d'une tâche
+     */
+    @Transactional
+    public Task stopRecurrence(Long taskId) {
+        Task task = getTaskById(taskId);
+        return recurrenceService.stopRecurrence(task);
+    }
+
+    // ======================
     //        TIMER
     // ======================
 
@@ -421,6 +511,11 @@ public class TaskService {
 
         // ⏹️ Notification timer arrêté (inclut le temps total)
         notificationService.notifyTimerStopped(savedTask, totalTimeSpent);
+
+        // Si c'est un template récurrent, créer la prochaine occurrence
+        if (Boolean.TRUE.equals(task.getIsRecurringTemplate())) {
+            recurrenceService.createNextOccurrence(task);
+        }
 
         return savedTask;
     }

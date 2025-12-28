@@ -81,4 +81,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     // Trouver une tâche par ID et userId (sécurité)
     Optional<Task> findByIdAndUserId(Long id, Long userId);
 
+    // Trouver les templates de récurrence dont la prochaine occurrence est avant une date
+    List<Task> findByIsRecurringTemplateTrueAndNextOccurrenceBefore(LocalDateTime date);
+
+    // Trouver les templates de récurrence d'un utilisateur
+    List<Task> findByUserIdAndIsRecurringTemplateTrue(Long userId);
 }
