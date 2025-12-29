@@ -86,4 +86,11 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     // Trouver les templates de récurrence d'un utilisateur
     List<Task> findByUserIdAndIsRecurringTemplateTrue(Long userId);
+
+    long countByStatus(TaskStatus status);
+
+    long countByCreatedAtAfter(LocalDateTime date);
+
+    long countByUserId(Long userId);
+
 }

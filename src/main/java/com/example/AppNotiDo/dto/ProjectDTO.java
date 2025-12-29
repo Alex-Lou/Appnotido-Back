@@ -1,5 +1,6 @@
 package com.example.AppNotiDo.dto;
 
+import com.example.AppNotiDo.domain.ProjectRole;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -22,6 +23,9 @@ public class ProjectDTO {
     private Integer completedTaskCount;
     private Integer pendingTaskCount;
     private Double completionPercentage;
+
+    // Rôle de l'utilisateur connecté pour ce projet
+    private ProjectRole userRole;
 
     public Double getCompletionPercentage() {
         if (taskCount == null || taskCount == 0) return 0.0;

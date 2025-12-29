@@ -1,7 +1,6 @@
 package com.example.AppNotiDo.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.springframework.data.annotation.CreatedDate;
@@ -34,6 +33,11 @@ public class User {
     @Column(nullable = false)
     private String role = "ROLE_USER";
 
+    // ✅ NOUVEAU : Rôle global (SUPER_ADMIN ou USER)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "global_role", nullable = false)
+    private GlobalRole globalRole = GlobalRole.USER;
+
     @CreatedDate
     private LocalDateTime createdAt;
 
@@ -50,10 +54,18 @@ public class User {
     @Column(name = "display_name", length = 100)
     private String displayName;
 
+    // ✅ NOUVEAU : Méthodes utilitaires
+    public boolean isSuperAdmin() {
+        return this.globalRole == GlobalRole.SUPER_ADMIN;
+    }
+
     @PrePersist
     public void prePersist() {
         if (this.role == null || this.role.isEmpty()) {
             this.role = "ROLE_USER";
+        }
+        if (this.globalRole == null) {
+            this.globalRole = GlobalRole.USER;
         }
         if (this.theme == null || this.theme.isEmpty()) {
             this.theme = "light";
